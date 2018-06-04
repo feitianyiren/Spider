@@ -10,7 +10,7 @@ class download(object):
         iplistn = re.findall(r'r/>(.*?)<b', html.text, re.S)  ##表示从html.text中获取所有r/><b中的内容，re.S的意思是包括匹配包括换行符，findall返回的是个list
         for ip in iplistn:
             i = re.sub('\n', '', ip)  ##re.sub 是re模块替换的方法，这儿表示将\n替换为空
-            iplist.append(i.strip())  ##添加到上面初始化的list里面, i.strip()的意思是去掉字符串的空格
+            self.iplist.append(i.strip())  ##添加到上面初始化的list里面, i.strip()的意思是去掉字符串的空格
 
         self.usr_agent_list = [
             "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/22.0.1207.1 Safari/537.1",
@@ -39,7 +39,13 @@ class download(object):
 
         if proxy == None:##当代理为空时，不使用代理获取response
             try:
-                return requests.get(url, headers=headers, timeout=timeout)
+                response = requests.get(url, headers=headers, timeout=timeout)
+                if response.status_code == 200:
+                    return response
+                else:
+                    IP =''.join(str(random.choice(self.iplist)).strip())
+                    proxy = {'http':IP}
+                    return self.get(url, timeout, proxy)
             except:
                 if num_retries > 0:##限定重试次数
                     time.sleep(10)##延迟10秒
@@ -55,7 +61,20 @@ class download(object):
             try:
                 IP = ''.join(str(random.choice(self.iplist)).strip())
                 proxy = {'http': IP}
-                return requests.get(url, headers=headers, proxies=proxy, timeout=timeout)
+                response = requests.get(url, headers=headers, proxies=proxy, timeout=timeout)
+                if response.status_code == 200:
+                    return response
+                else:
+                    if num_retries > 0:  ##限定重试次数
+                        time.sleep(10)  ##延迟10秒
+                        IP = ''.join(str(random.choice(self.iplist)).strip())
+                        proxy = {'http': IP}
+                        print(u'正在更换代理，10S后将重新获取倒数第', num_retries, u'次')
+                        print(u'当前代理是：', proxy)
+                        return self.get(url, timeout, proxy, num_retries - 1)  ##调用自身并将次数减1
+                    else:
+                        print(u'代理失效！取消代理')
+                        return self.get(url, 3)
             except:
                 if num_retries>0:
                     time.sleep(10)
